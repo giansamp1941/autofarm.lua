@@ -4,7 +4,8 @@ gg.clearResults()
 --[[
   SCRIPT DE RIO RISE V2 SAFE
   Desenvolvido por: GIAN HENRIQUE
-  Versão: V2.2 SAFE MOD + SUBTERRÂNEO + DELAY PERSONALIZADO
+  Desenvolvido por: Plinio
+  Versão: V0.5 SAFE MOD + SUBTERRÂNEO + DELAY PERSONALIZADO
 ]]
 
 -- Configurações globais
@@ -18,7 +19,7 @@ local velocidadeCaminhar = 50
 local velocidadeCarregar = 50
 local delayAutoFarm = 5
 local movimentoTipo = "padrao" -- Opções: "padrao", "subterraneo", "aereo", "invisivel"
-local versao = "V2.2 SAFE MOD + SUBTERRÂNEO + DELAY PERSONALIZADO"
+local versao = "V0.5 SAFE MOD + AUTOMÁTICO"
 local maxPosicoesSalvas = 50 -- Aumentado de 10 para 50
 
 -- Configurações subterrâneo
@@ -34,6 +35,16 @@ local ARQUIVO_FARM = "gh_samp_farm_v3.dat"
 local RIO_RISE_SPOTS = {
     ["🏡 Fazenda"] = {x = 80.74, y = -49.74, z = 3.12},
     ["⛏️ Mina"] = {x = -1560.35, y = -97.57, z = 63.46},
+    ["🔫 LOB Inicial"] = {x = -2655.95, y = -956.31, z = 32.81},
+    ["🍔 Lanchonete"] = {x = -2603.21, y = -968.39, z = 32.85},
+    ["👕 Loja de Roupa"] = {x = -2613.60, y = -1015.26, z = 32.85},
+    ["🏪 Loja 24/7"] = {x = -2622.08, y = -1056.59, z = 32.85},
+    ["🏦 Banco"] = {x = -2551.22, y = -1205.51, z = 33.34},
+    ["🚗 Auto Escola"] = {x = -2562.07, y = -1281.41, z = 33.55},
+    ["🏛️ Prefeitura"] = {x = -1848.71, y = 620.66, z = 3.95},
+    ["🏥 HP"] = {x = -1918.17, y = 871.51, z = 2.57},
+    ["👮 DP CV"] = {x = -1411.63, y = 652.67, z = 1.64},
+    ["🔨 Leilão"] = {x = -1460.09, y = 707.97, z = 3.04}
 }
 
 -- Função para configurar movimento subterrâneo
@@ -159,25 +170,43 @@ function editarDelayPosicao()
         gg.toast("🚫 Nenhuma posição salva disponível!")
         return
     end
-    
+
     local opcoes = {}
     for i, pos in ipairs(posicoesSalvas) do
-        table.insert(opcoes, pos.nome .. " (Delay: " .. (pos.delay or 5) .. "s)")
+        table.insert(opcoes, pos.nome .. " (Delay: " .. (pos.delay or 500) .. "ms)")
     end
-    
+
     local escolha = gg.choice(opcoes, nil, "⏱️ Escolha a posição para editar delay:")
     if not escolha then return end
-    
-    local novoDelay = gg.prompt({"Digite o novo delay (segundos):"}, 
-                               {tostring(posicoesSalvas[escolha].delay or 5)}, 
-                               {"number"})
-    
-    if novoDelay and tonumber(novoDelay[1]) then
-        posicoesSalvas[escolha].delay = math.max(1, tonumber(novoDelay[1]))
+
+    local entrada = gg.prompt({
+        "Digite o valor do delay:",
+        "Escolha a unidade (ms, s, min):"
+    }, {
+        tostring(posicoesSalvas[escolha].delay or 500),
+        "ms"
+    }, {
+        "number", "text"
+    })
+
+    if entrada then
+        local valor = tonumber(entrada[1]) or 500
+        local unidade = entrada[2]:lower()
+
+        local multiplicador = 1
+        if unidade == "s" or unidade == "seg" or unidade == "segundo" or unidade == "segundos" then
+            multiplicador = 1000
+        elseif unidade == "min" or unidade == "minuto" or unidade == "minutos" then
+            multiplicador = 60000
+        end
+
+        local delayFinal = math.max(50, valor * multiplicador)
+        posicoesSalvas[escolha].delay = delayFinal
         salvarPosicoesNoArmazenamento()
-        gg.toast("⏱️ Delay atualizado para "..posicoesSalvas[escolha].delay.."s!")
+        gg.toast("⏱️ Delay atualizado para " .. delayFinal .. "ms!")
     end
 end
+
 
 -- Funções de salvamento/carregamento
 function salvarPosicoesNoArmazenamento()
@@ -225,36 +254,30 @@ function salvarPosicoesFarm()
         gg.toast("🚫 Salve pelo menos 2 posições antes de configurar o auto farm!")
         return
     end
-    
+
     local opcoes = {}
     for i, pos in ipairs(posicoesSalvas) do
         table.insert(opcoes, pos.nome .. " (X:" .. math.floor(pos.x) .. " Y:" .. math.floor(pos.y) .. ")")
     end
-    
-    local escolhas = gg.multiChoice(opcoes, nil, "Selecione as posições para o auto farm (até 5):")
-    
-    if not escolhas then
-        return
-    end
-    
-    posicoesFarm = {}
-    for i = 1, #escolhas do
+
+    local escolhas = gg.multiChoice(opcoes, nil, "✅ Selecione as posições para o Auto Farm (sem limite):")
+    if not escolhas then return end
+
+    posicoesFarm = {} -- limpa as anteriores
+
+    for i = 1, #posicoesSalvas do
         if escolhas[i] then
             table.insert(posicoesFarm, posicoesSalvas[i])
         end
     end
-    
-    if #posicoesFarm > 5 then
-        table.remove(posicoesFarm, 6)
-    end
-    
+
     local dados = ""
     for i, pos in ipairs(posicoesFarm) do
-        dados = dados .. string.format("%s|%.2f|%.2f|%.2f|%d\n", pos.nome, pos.x, pos.y, pos.z, pos.delay or 5)
+        dados = dados .. string.format("%s|%.2f|%.2f|%.2f|%d\n", pos.nome, pos.x, pos.y, pos.z, pos.delay or 500)
     end
-    
+
     if salvarArquivo(ARQUIVO_FARM, dados) then
-        gg.toast("✅ Posições de farm configuradas com sucesso!")
+        gg.toast("✅ Posições de farm salvas com sucesso!")
     else
         gg.toast("❌ Erro ao salvar posições de farm!")
     end
@@ -342,39 +365,9 @@ function caminharAtePosicao(x, y, z, tipoMovimento)
     if tipoMovimento == "subterraneo" then
         moverSubterraneo(x, y, z)
     else
-        local distanciaTotal = math.sqrt((x - posAtual.x)^2 + (y - posAtual.y)^2 + (z - posAtual.z)^2)
-        
-        if distanciaTotal > 1000 then
-            gg.alert("⚠️ Atenção: Distância longa pode ser detectada!")
-        end
-        
-        local passos = math.max(1, math.floor(distanciaTotal / (velocidadeCarregar / 5)))
-        
-        gg.toast(string.format("🚶 Caminhando... (%.0fm)", distanciaTotal))
-
-        for i = 1, passos do
-            if not caminhando then break end
-            
-            local progresso = i / passos
-            local novoX = posAtual.x + (x - posAtual.x) * progresso + (math.random() * 1 - 0.5)
-            local novoY = posAtual.y + (y - posAtual.y) * progresso + (math.random() * 1 - 0.5)
-            local novoZ = posAtual.z + (z - posAtual.z) * progresso + (math.random() * 1 - 0.5)
-            
-            if tipoMovimento == "aereo" then
-                novoZ = math.max(novoZ, 100)
-            elseif tipoMovimento == "invisivel" then
-                novoZ = math.max(novoZ, 1000)
-            end
-            
-            definirCoordenadas(novoX, novoY, novoZ)
-            gg.sleep(math.max(1, 200 - (velocidadeCarregar * 2)))
-        end
-        
-        if caminhando then
-            definirCoordenadas(x, y, z)
-            gg.toast("🏁 Destino alcançado!")
-        end
-    end
+    definirCoordenadas(x, y, z)
+    gg.toast("⚡ Teleporte rápido para destino!")
+end
     
     caminhando = false
 end
@@ -437,44 +430,112 @@ function autoFarm()
         gg.toast("🚫 Nenhuma posição de farm configurada!")
         return
     end
-    
+
     local executando = true
-    
-    while executando do
-        for _, posicao in ipairs(posicoesFarm) do
-            if not executando then
-                break
-            end
-            
-            -- Salvamento silencioso (SEM TOAST)
-            local posAtual = obterCoordenadas()
-            if #posicoesSalvas >= maxPosicoesSalvas then
-                table.remove(posicoesSalvas, 1)
-            end
-            table.insert(posicoesSalvas, {
-                nome = "Farm "..os.date("%H:%M:%S"),
-                x = posAtual.x,
-                y = posAtual.y,
-                z = posAtual.z,
-                delay = 5
-            })
-            
-            -- Movimento com delay personalizado
-            caminharAtePosicao(posicao.x, posicao.y, posicao.z, movimentoTipo)
-            
-            -- Usar delay específico da posição ou padrão
-            local delayAtual = posicao.delay or delayAutoFarm
-            gg.toast(string.format("⏳ Aguardando %ds em %s...", delayAtual, posicao.nome))
-            gg.sleep(delayAtual * 1000)
+local ciclos = 0
+local reverso = false
+
+gg.alert("🔁 Auto Farm iniciado!\n\nToque no botão flutuante do GG para PARAR.")
+
+while executando do
+    -- Define a ordem das posições (normal ou reversa)
+    local lista = reverso and {} or posicoesFarm
+
+    if reverso and modoReversoAtivado then
+        -- Copia posicoesFarm de trás pra frente
+        for i = #posicoesFarm, 1, -1 do
+            table.insert(lista, posicoesFarm[i])
         end
     end
+
+    for _, posicao in ipairs(lista) do
+        if not executando then break end
+
+        local posAtual = obterCoordenadas()
+        if #posicoesSalvas >= maxPosicoesSalvas then
+            table.remove(posicoesSalvas, 1)
+        end
+        table.insert(posicoesSalvas, {
+            nome = "Farm "..os.date("%H:%M:%S"),
+            x = posAtual.x,
+            y = posAtual.y,
+            z = posAtual.z,
+            delay = 500
+        })
+
+        caminharAtePosicao(posicao.x, posicao.y, posicao.z, movimentoTipo)
+
+        local delayAtual = posicao.delay or (delayAutoFarm * 1000)
+local tempoPassado = 0
+local paradoPor = 0
+local intervalo = 250 -- checagem a cada 250ms
+local posAnterior = obterCoordenadas()
+
+gg.toast("🎮 AUTO FARM BY: GIAN SAMP.  POSIÇÃO:" .. posicao.nome)
+
+local tentativasTravadas = 0
+local maxTravadas = 2
+local delayEntreTentativas = 1500 -- 1.5s extra de espera se travar
+
+while tempoPassado < delayAtual do
+    gg.sleep(intervalo)
+    tempoPassado = tempoPassado + intervalo
+
+    local posAtual = obterCoordenadas()
+    local dx = math.abs(posAtual.x - posAnterior.x)
+    local dy = math.abs(posAtual.y - posAnterior.y)
+    local dz = math.abs(posAtual.z - posAnterior.z)
+
+    if dx < 0.05 and dy < 0.05 and dz < 0.05 then
+        paradoPor = paradoPor + intervalo
+        if paradoPor >= 1800 then
+            tentativasTravadas = tentativasTravadas + 1
+            gg.toast("⚠️ Parado "..tentativasTravadas.."x. Esperando antes de tentar pular...")
+
+            if tentativasTravadas >= maxTravadas then
+                gg.sleep(delayEntreTentativas)
+                gg.toast("⚠️ Travado várias vezes! Indo para próxima posição...")
+                goto proximaPosicao
+            end
+
+            paradoPor = 0
+        end
+    else
+        paradoPor = 0
+        tentativasTravadas = 0
+    end
+
+    posAnterior = posAtual
+end
+
+        if gg.isVisible(true) then
+            gg.setVisible(false)
+            local confirm = gg.alert("❓ Deseja PARAR o Auto Farm?", "Sim", "Não")
+            if confirm == 1 then
+                executando = false
+                break
+            end
+        end
+   ::proximaPosicao::
+    end
+
+    if executando then
+        ciclos = ciclos + 1
+        gg.toast("✅ Ciclo " .. ciclos .. " completo!")
+        -- Alterna modo reverso se ativado
+        if modoReversoAtivado then
+            reverso = not reverso
+        end
+    end
+end
+
+    gg.toast("🛑 Auto Farm finalizado! Total de ciclos: " .. ciclos)
 end
 
 -- Função para teleporte suave
 function teleportSeguroV2(x, y, z)
     local posAtual = obterCoordenadas()
     
-    -- Salvamento silencioso (SEM TOAST)
     if #posicoesSalvas >= maxPosicoesSalvas then
         table.remove(posicoesSalvas, 1)
     end
@@ -485,27 +546,9 @@ function teleportSeguroV2(x, y, z)
         z = posAtual.z,
         delay = 5
     })
-    
-    local distancia = math.sqrt((x - posAtual.x)^2 + (y - posAtual.y)^2 + (z - posAtual.z)^2)
-    
-    if distancia > 1000 then
-        gg.alert("⚠️ Atenção: Distância longa pode ser detectada!")
-    end
-    
-    local steps = math.max(50, math.floor(distancia / 10))
-    
-    for i = 1, steps do
-        local progresso = i / steps
-        local interX = posAtual.x + (x - posAtual.x) * progresso + (math.random() * 2 - 1)
-        local interY = posAtual.y + (y - posAtual.y) * progresso + (math.random() * 2 - 1)
-        local interZ = posAtual.z + (z - posAtual.z) * progresso + (math.random() * 2 - 1)
-        
-        definirCoordenadas(interX, interY, interZ)
-        gg.sleep(200 + math.random(0, 100))
-    end
-    
+
     definirCoordenadas(x, y, z)
-    gg.sleep(500)
+    gg.sleep(100) -- Você pode remover essa linha se quiser INSTANTÂNEO
 end
 
 -- Função para ajustar tipo de movimento
@@ -614,6 +657,7 @@ function menuPrincipal()
                 "🛑 Parar Caminhada",
                 "⏱️ Editar Delay de Posição",
                 "⚡ Configurar Velocidade TP",
+                "🔃 Ativar/Desativar Modo Reverso",
                 "❌ Sair"
             }
             
@@ -690,6 +734,13 @@ function menuPrincipal()
                 elseif opcoes[escolha] == "⚡ Configurar Velocidade TP" then
                     configurarVelocidadeTeleporte()
                     
+                elseif opcoes[escolha] == "🔃 Ativar/Desativar Modo Reverso" then
+               modoReversoAtivado = not modoReversoAtivado
+               if modoReversoAtivado then
+                    gg.toast("🔁 Modo Reverso ATIVADO!")
+                  else
+                    gg.toast("⛔ Modo Reverso DESATIVADO!")           
+               end
                 elseif opcoes[escolha] == "❌ Sair" then
                     scriptAtivo = false
                     gg.toast("👋 Script finalizado!")
@@ -699,7 +750,6 @@ function menuPrincipal()
         end
     end
 end
-
 -- Iniciar script
 gg.toast("🚀 GIAN SAMP - RIO RISE\nDesenvolvido por GIAN HENRIQUE\nVersão: "..versao)
 inicializar()
