@@ -1,4 +1,4 @@
-john:123456:7d:1689292800:Giovanni
-mary:abcdef:24h:1689292800:DealerX
-teste:teste123:1d6h30m::VendedorY
-admin:123:permanente::Gian
+user1:pass123:30d:123456789:VendedorA
+user2:pass456:15d::VendedorB  -- sem timestamp
+user3:pass789:48h:123456789    -- sem vendedor
+user4:pass012:1d6h30m          -- apenas os 3 campos obrigatórios
