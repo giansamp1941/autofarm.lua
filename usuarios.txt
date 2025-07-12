@@ -1,4 +1,4 @@
-ad:1:30d:123456789:lucas
-user2:pass456:15d::VendedorB  -- sem timestamp
-admin:123:48h:123456789    -- sem vendedor
-gian:1234:1d6h30m          -- apenas os 3 campos obrigatórios
+admin:1234:30d:123456789:Giovanni
+gian:senha123:48h::VendedorX
+teste:abc123:1d6h30m:123456789:
+admin:admin123:permanente:::
